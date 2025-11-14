@@ -72,6 +72,16 @@ def AffineGap(v, w):
     max_score = max(middle[m][n], lower[m][n], upper[m][n])
 
     # backtracking
+    '''
+    구조적으로 middle을 거쳐야 함
+    e.g.
+    A-
+    -T
+    이렇게 연달아 gap open이 일어나는 것 보다
+    A
+    T
+    mismatch로 가는게 score가 더 클 수 밖에 없어서
+    '''
     align_v, align_w = "", ""
     i, j = m, n
 
