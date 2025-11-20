@@ -1,4 +1,4 @@
-# Find a Median String - BA2B
+# BA2B: Find a Median String
 from itertools import product
 
 def hamming(a, b):
