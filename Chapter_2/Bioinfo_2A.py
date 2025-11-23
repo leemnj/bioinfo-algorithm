@@ -25,7 +25,6 @@ def neighbors(pattern, d):
 def motif_enumeration(Dna, k, d):
     patterns = set()
 
-    # 모든 DNA 문자열에서 k-mer를 수집
     kmer_sets = [
         {dna[i:i+k] for i in range(len(dna) - k + 1)}
         for dna in Dna
@@ -33,17 +32,14 @@ def motif_enumeration(Dna, k, d):
 
     # 첫 번째 문자열의 k-mer만 대상
     for kmer in kmer_sets[0]:
-
-        # 이 kmer의 모든 neighbors 생성
         for nbd in neighbors(kmer, d):
             found_in_all = True
+
             for s in kmer_sets[1:]:
-                # mismatch ≤ d 인 k-mer가 있는지 검사
                 if not any(hamming(nbd, x) <= d for x in s):
                     found_in_all = False
                     break
 
-            # 조건 만족하면 motif 패턴에 추가
             if found_in_all:
                 patterns.add(nbd)
 
@@ -58,7 +54,6 @@ if __name__ == "__main__":
         k, d = map(int, data[:2])
         Dna = data[2:]
     except:
-        # sample test
         k, d = 3, 1
         Dna = ["ATTTGGC", "TGCCTTA", "CGGTATC", "GAAAATT"]
     

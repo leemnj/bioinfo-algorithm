@@ -1,4 +1,7 @@
 # BA2G: Gibbs Sampler
+'''
+the iteration number is too small so I change N=2000 to 5000 to solve this problem.
+'''
 import random as r
 
 def profile(motifs, psuedocounts=1):
@@ -59,8 +62,8 @@ def GibbsSampler(Dna, k, t, N):
 if __name__ == "__main__":
     try:
         with open("inputs/rosalind_ba2g.txt", "r") as f:
-            data = f.read().strip().splitlines()
-            k, t, N = int(data[0]), int(data[1]), int(data[2])
+            data = f.read().strip().split()
+            k, t, N = int(data[0]),int(data[1]), int(data[2])
             Dna = data[3:]
     except:
         k, t, N = 8, 5, 100
@@ -69,6 +72,5 @@ GGGCGAGGTATGTGTAAGTGCCAAGGTGCCAG
 TAGTACCGAGACCGAAAGAAGTATACAGGCGT
 TAGATCAAGTTTCAGGTGCACGTCGGTGAACC
 AATCCACCAGCTCCACGTGCAATGTTGGCCTA""".split("\n")
-    result = GibbsSampler(Dna, k, t, N)
-    print(k, t, N)
+    result = GibbsSampler(Dna, k, t, 5000)
     print("\n".join(result))
