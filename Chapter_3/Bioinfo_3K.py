@@ -9,82 +9,101 @@ from collections import defaultdict
 from textwrap import dedent
 
 def build_DBG(reads):
-    graph, indegree, outdegree = defaultdict(list), defaultdict(int), defaultdict(int)
-    for read in reads:
-        prefix = read[:-1]
-        suffix = read[1:]
-        graph[prefix].append(suffix)
+    """
+    De Bruijn Graph 생성 및 차수 계산 (초기 상태 고정)
+    """
+    graph = defaultdict(list)
+    indegree = defaultdict(int)
+    outdegree = defaultdict(int)
+    
+    for kmer in reads:
+        u = kmer[:-1]
+        v = kmer[1:]
         
-        outdegree[prefix] += 1
-        indegree[suffix] += 1
+        graph[u].append(v)
+        outdegree[u] += 1
+        indegree[v] += 1
         
-        if suffix not in graph:
-            graph[suffix] = []
+        # 딕셔너리 키 초기화 (모든 노드가 키로 존재하도록)
+        if v not in outdegree: outdegree[v] = 0
+        if u not in indegree: indegree[u] = 0
 
     return graph, indegree, outdegree
 
 def get_contigs_from_DBG(graph, indegree, outdegree):
+    """
+    고정된 차수(Degree) 정보를 기반으로 Contig 추출
+    (그래프의 엣지를 소모하지만, 차수 정보는 변하지 않음)
+    """
     contigs = []
     
-    # 원본 보존 + defaultdict 유지
-    g = {u: list(vs) for u, vs in graph.items()}
-    in_deg = defaultdict(int, indegree)
-    out_deg = defaultdict(int, outdegree)
+    # 그래프의 모든 노드 리스트
+    nodes = list(graph.keys())
+    
+    # ---------------------------------------------------------
+    # [Step 1] "분기점"에서 시작하는 Contig 찾기
+    # 분기점 정의: in != 1 또는 out != 1 인 노드
+    # 이 노드들은 절대 Contig의 '중간'이 될 수 없으므로, 여기서 시작해야 안전함.
+    # ---------------------------------------------------------
+    for v in nodes:
+        # 1-in-1-out(단순 통로)가 '아닌' 노드만 골라서 시작점으로 삼음
+        if not (indegree[v] == 1 and outdegree[v] == 1):
+            if outdegree[v] > 0:
+                # 해당 노드에서 나가는 모든 엣지를 각각의 Contig 시작으로 봄
+                # while 루프를 사용하여 graph[v] 리스트를 비워나감 (방문 처리)
+                while graph[v]:
+                    w = graph[v].pop(0) # 엣지 (v -> w) 소모
+                    path = [v, w]
+                    
+                    # 현재 경로의 끝점(w)에서 계속 직진 가능한지 확인
+                    # 주의: 여기서 w의 차수는 '초기 계산된 값'을 그대로 참조함
+                    curr = w
+                    while indegree[curr] == 1 and outdegree[curr] == 1:
+                        # 1-in-1-out이라도 엣지가 남아있어야 이동 가능
+                        if not graph[curr]: 
+                            break
+                            
+                        next_node = graph[curr].pop(0) # 엣지 소모
+                        path.append(next_node)
+                        curr = next_node
+                    
+                    contigs.append(path)
 
-    nodes = set(g.keys()) | set(in_deg.keys()) | set(out_deg.keys())
+    # ---------------------------------------------------------
+    # [Step 2] 고립된 사이클(Isolated Cycles) 찾기
+    # Step 1을 거치고도 그래프에 엣지가 남아있다면, 
+    # 그것은 모든 노드가 1-in-1-out인 순환 고리들임.
+    # ---------------------------------------------------------
+    for v in nodes:
+        while graph[v]: # 아직 방문 안 한 엣지가 있다면
+            w = graph[v].pop(0)
+            path = [v, w]
+            
+            curr = w
+            while indegree[curr] == 1 and outdegree[curr] == 1:
+                if not graph[curr]:
+                    break
+                next_node = graph[curr].pop(0)
+                path.append(next_node)
+                curr = next_node
+            
+            contigs.append(path)
 
-    def consume_edge(u, v):
-        """ edge 사용 → 제거 + indegree/outdegree 감소 """
-        g[u].remove(v)
-        out_deg[u] -= 1
-        in_deg[v] -= 1
-        return v
-
-    # ---- 1) branching start node들 먼저 확장 ----
-    for node in nodes:
-        if out_deg[node] > 0 and not (in_deg[node] == 1 and out_deg[node] == 1):
-            while out_deg[node] > 0:
-                path = [node]
-                cur = node
-
-                # 시작 edge 하나 소모
-                nxt = g[cur][0]
-                cur = consume_edge(cur, nxt)
-                path.append(cur)
-
-                # indegree=outdegree=1 노드면 계속 확장
-                while in_deg[cur] == 1 and out_deg[cur] == 1:
-                    nxt = g[cur][0]
-                    cur = consume_edge(cur, nxt)
-                    path.append(cur)
-
-                # k-mer list → 문자열 전환
-                seq = path[0] + ''.join(p[-1] for p in path[1:])
-                contigs.append(seq)
-
-    # ---- 2) 아직 남아있는 것은 cycle (in=1=out) ----
-    for node in nodes:
-        while out_deg[node] > 0 and in_deg[node] > 0:
-            path = [node]
-            cur = node
-
-            nxt = g[cur][0]
-            cur = consume_edge(cur, nxt)
-            path.append(cur)
-
-            while in_deg[cur] == 1 and out_deg[cur] == 1:
-                nxt = g[cur][0]
-                cur = consume_edge(cur, nxt)
-                path.append(cur)
-
-            seq = path[0] + ''.join(p[-1] for p in path[1:])
-            contigs.append(seq)
-
-    return contigs
+    # ---------------------------------------------------------
+    # [Step 3] 경로(Node List)를 문자열로 변환
+    # ---------------------------------------------------------
+    result_strings = []
+    for path in contigs:
+        contig_str = path[0]
+        for node in path[1:]:
+            contig_str += node[-1] # 뒷 노드의 마지막 글자만 추가
+        result_strings.append(contig_str)
+        
+    return sorted(result_strings)
     
 if __name__ == "__main__":
     try:
-        with open("input/rosalind.ba3k.txt") as f:
+        with open("input/rosalind_ba3k.txt") as f:
             data = f.read().strip().splitlines()
     except:
         data = dedent("""
@@ -98,5 +117,7 @@ if __name__ == "__main__":
                     AGA""").strip().splitlines()
     reads = data
     DBG, indegree, outdegree = build_DBG(reads)
-    contigs = get_contigs_from_DBG(DBG, indegree, outdegree)
+    contigs = sorted(get_contigs_from_DBG(DBG, indegree, outdegree))
     print(' '.join(contigs))
+    with open("output/3K.txt", "w") as f:
+        f.write(' '.join(contigs))
