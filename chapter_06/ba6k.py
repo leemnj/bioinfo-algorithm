@@ -109,7 +109,7 @@ def graph_to_genome(graph_edges):
 
 if __name__ == "__main__":
     try:
-        with open("input/rosalind_ba6k.txt", "r") as f:
+        with open("inpㅏut/rosalind_ba6k.txt", "r") as f:
             line1 = f.readline().strip()
             line2 = f.readline().strip()
     except:
