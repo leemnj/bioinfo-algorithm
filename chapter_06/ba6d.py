@@ -1,5 +1,4 @@
-import sys
-
+# BA6D: Implement 2-Break Sorting
 def parse_genome(genome_str):
     """
     (+1 -2 -3) 형태의 문자열을 정수 리스트의 리스트로 파싱합니다.
